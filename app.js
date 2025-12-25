@@ -11,6 +11,8 @@ const PORT = 3000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+
+// Serve static files (e.g., CSS, JS, images) from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Initialize database
@@ -28,73 +30,47 @@ const db = new sqlite3.Database('./Login.db', (err) => {
                 if (err) {
                     console.error('Error creating table:', err);
                 } else {
-                    console.log('Database initialized and table ready.');
+                    console.log('Database initialized and table created (if not exists).');
                 }
             }
         );
     }
 });
 
-// Serve the front-end HTML file
+// Serve the front-end HTML file when accessing the root URL
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Sign Up Route
+// Route: Sign Up
 app.post('/signup', async (req, res) => {
     const { username, password } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
-    }
-
     db.get('SELECT * FROM users WHERE username = ?', [username], async (err, row) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ message: 'Database error' });
-        }
-        if (row) return res.status(400).json({ message: 'Username already exists' });
+        if (err) return res.status(500).json({ message: 'Database error' });
+        if (row) return res.status(400).json({ message: 'username already exists' });
 
-        try {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword], (err) => {
-                if (err) {
-                    console.error('Database Insert Error:', err);
-                    return res.status(500).json({ message: 'Database error' });
-                }
-                res.status(201).json({ message: 'Sign-up successful!' });
-            });
-        } catch (error) {
-            console.error('Hashing error:', error);
-            res.status(500).json({ message: 'Server error' });
-        }
+        const hashedpassword = await bcrypt.hash(password, 10);
+
+        db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedpassword], (err) => {
+            if (err) return res.status(500).json({ message: 'Database error' });
+            res.status(201).json({ message: 'Sign-up successful!' });
+        });
     });
 });
 
-// Login Route
+// Route: Login
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
-    }
-
     db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ message: 'Database error' });
-        }
+        if (err) return res.status(500).json({ message: 'Database error' });
         if (!user) return res.status(400).json({ message: 'Invalid username or password' });
 
-        try {
-            const isValidPassword = await bcrypt.compare(password, user.password);
-            if (!isValidPassword) return res.status(400).json({ message: 'Invalid username or password' });
+        const isValidpassword = await bcrypt.compare(password, user.password);
+        if (!isValidpassword) return res.status(400).json({ message: 'Invalid username or password' });
 
-            res.status(200).json({ message: 'Login successful!' });
-        } catch (error) {
-            console.error('Password comparison error:', error);
-            res.status(500).json({ message: 'Server error' });
-        }
+        res.status(200).json({ message: 'Login successful!' });
     });
 });
 
